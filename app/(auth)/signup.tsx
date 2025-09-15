@@ -1,19 +1,18 @@
 // app/signup.tsx
 import React, { useEffect, useState } from 'react';
 // KeyboardAvoidingView e Platform importados
-import axios from 'axios';
 import { Link, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import PrimaryButton from '../src/components/PrimaryButton';
-import StyledInput from '../src/components/StyledInput';
-
-const API_URL = 'http://192.168.1.10:3333'; // Lembre-se de manter seu IP aqui
+import PrimaryButton from '../../src/components/PrimaryButton';
+import StyledInput from '../../src/components/StyledInput';
+import { useAuth } from '../../src/contexts/AuthContext'; // Importa o hook
 
 export default function SignUpScreen() {
+  const { register } = useAuth(); // Pega a função de registro do contexto
   const theme = useTheme();
   const router = useRouter();
   
@@ -60,23 +59,15 @@ export default function SignUpScreen() {
     }
     setLoading(true);
     try {
-      // CORREÇÃO: Variável 'response' removida
-      const fullName = firstName + ' ' + lastName;
-      await axios.post(`${API_URL}/users`, {
-        fullName,
-        username,
-        email,
-        password,
-      });
-      Alert.alert('Sucesso!', 'Sua conta foi criada. Faça o login para continuar.');
-      router.push('/login');
+      const fullName = `${firstName} ${lastName}`;
+      // Chama a função centralizada do contexto
+      await register({ fullName, username, email, password });
     } catch (error: any) {
       if (error.response) {
         Alert.alert('Erro no cadastro', error.response.data.error);
       } else {
-        Alert.alert('Erro', 'Não foi possível se conectar ao servidor. Tente novamente.');
+        Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
       }
-      console.error(error);
     } finally {
       setLoading(false);
     }

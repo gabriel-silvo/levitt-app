@@ -65,8 +65,10 @@ app.post('/users', async (req, res) => {
       },
     });
 
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return res.status(201).json(userWithoutPassword);
+    return res.status(201).json({ user: userWithoutPassword, token: token });
 
   } catch (error) {
     console.error('Erro ao criar usuário:', error);
