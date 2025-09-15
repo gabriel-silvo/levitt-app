@@ -1,7 +1,9 @@
 // app/login.tsx
-import { Link } from 'expo-router';
+import axios from 'axios';
+import { Link, useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store'; // Importamos o SecureStore
 import React, { useEffect, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -11,10 +13,14 @@ import PrimaryButton from '../src/components/PrimaryButton';
 import StyledInput from '../src/components/StyledInput';
 import GoogleLogo from '../src/components/icons/GoogleLogo';
 
+const API_URL = 'http://192.168.1.10:3333';
+
 export default function LoginScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // --- INÍCIO DA NOVA LÓGICA ---
   // 1. Criamos um estado para controlar a visibilidade do teclado
@@ -43,7 +49,37 @@ export default function LoginScreen() {
   }, []);
   // --- FIM DA NOVA LÓGICA ---
 
-  const handleLogin = () => { /* TODO */ };
+  const handleLogin = async () => {
+    setLoading(true);
+    try {
+      // 1. Chama a rota de /sessions que criamos no backend
+      const response = await axios.post(`${API_URL}/sessions`, {
+        emailOrUsername,
+        password,
+      });
+
+      const { token } = response.data;
+
+      // 2. Salva o token de forma segura no dispositivo
+      await SecureStore.setItemAsync('userToken', token);
+
+      Alert.alert('Sucesso', 'Login realizado com sucesso!');
+
+      // 3. Navega para a tela principal do app, substituindo a tela de login
+      // para que o usuário não possa "voltar" para ela.
+      router.replace('/(tabs)'); // (tabs) é o diretório do nosso layout principal
+
+    } catch (error: any) {
+      if (error.response) {
+        Alert.alert('Erro no login', error.response.data.error);
+      } else {
+        Alert.alert('Erro', 'Não foi possível se conectar ao servidor.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = () => { /* TODO */ };
   const handleAppleLogin = () => { /* TODO */ };
 
@@ -71,8 +107,8 @@ export default function LoginScreen() {
                     </TouchableOpacity>
                     </View>
 
-                    <PrimaryButton onPress={handleLogin}>
-                    Entrar
+                    <PrimaryButton onPress={handleLogin} disabled={loading}>
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </PrimaryButton>
 
                     {/* --- Divisor e Botões Sociais --- */}
