@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Tabela de Usuários
+model User {
+  id            String    @id @default(uuid())
+  fullName      String    @map("full_name")
+  username      String?   @unique
+  email         String    @unique
+  passwordHash  String?   @map("password_hash")
+  phoneNumber   String?   @map("phone_number")
+  birthDate     DateTime? @map("birth_date")
+  avatarUrl     String?   @map("avatar_url")
+  googleId      String?   @unique @map("google_id")
+  appleId       String?   @unique @map("apple_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  skills          UserSkill[]
+  ministries      MinistryMember[]
+  ledMinistries   Ministry[]
+  eventParticipants EventParticipant[]
+  studyTrackings    UserStudyTracking[]
+  availabilities    UserAvailability[]
+  studyResources    UserStudyResource[]
+
+  @@map("users")
+}
+
+// 2. Tabela de Igrejas
+model Church {
+  id        String     @id @default(uuid())
+  name      String
+  city      String?
+  state     String?
+  country   String?
+  createdAt DateTime   @default(now()) @map("created_at")
+  
+  ministries Ministry[]
+
+  @@map("churches")
+}
+
+// 3. Tabela de Habilidades
+model Skill {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String?
+
+  users             UserSkill[]
+  eventParticipants EventParticipant[]
+
+  @@map("skills")
+}
+
+// 4. Tabela de Junção: Usuário <-> Habilidade
+model UserSkill {
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String @map("user_id")
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  skillId String @map("skill_id")
+
+  @@id([userId, skillId])
+  @@map("user_skills")
+}
+
+// 5. Tabela de Ministérios
+model Ministry {
+  id        String   @id @default(uuid())
+  name      String
+  
+  church    Church?  @relation(fields: [churchId], references: [id], onDelete: SetNull)
+  churchId  String?  @map("church_id")
+  
+  leader    User?    @relation(fields: [leaderId], references: [id], onDelete: SetNull)
+  leaderId  String?  @map("leader_id")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members MinistryMember[]
+  songs   Song[]
+  events  Event[]
+
+  @@map("ministries")
+}
+
+// 6. Tabela de Junção: Membros do Ministério
+enum MinistryRole {
+  member
+  admin
+}
+
+model MinistryMember {
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String       @map("user_id")
+  ministry   Ministry     @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+  ministryId String       @map("ministry_id")
+  role       MinistryRole @default(member)
+
+  @@id([userId, ministryId])
+  @@map("ministry_members")
+}
+
+// 7. Tabela de Músicas
+model Song {
+  id           String  @id @default(uuid())
+  ministry     Ministry @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+  ministryId   String  @map("ministry_id")
+  title        String
+  artist       String?
+  defaultKey   String? @map("default_key")
+  defaultBpm   Int?    @map("default_bpm")
+  lyrics       String?
+  chordsUrl    String? @map("chords_url")
+  youtubeUrl   String? @map("youtube_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  
+  events EventSong[]
+  studyTrackings UserStudyTracking[]
+
+  @@map("songs")
+}
+
+// 8. Tabela de Eventos (Escalas e Ensaios)
+enum EventType {
+  scale
+  rehearsal
+}
+
+model Event {
+  id             String    @id @default(uuid())
+  ministry       Ministry  @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+  ministryId     String    @map("ministry_id")
+  
+  parentEvent    Event?    @relation("RehearsalForScale", fields: [parentEventId], references: [id], onDelete: Cascade)
+  parentEventId  String?   @map("parent_event_id")
+  rehearsals     Event[]   @relation("RehearsalForScale")
+
+  type           EventType
+  title          String
+  description    String?
+  eventDate      DateTime  @map("event_date")
+  location       String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  songs        EventSong[]
+  participants EventParticipant[]
+  studyTrackings UserStudyTracking[]
+
+  @@map("events")
+}
+
+// 9. Tabela de Junção: Músicas do Evento
+model EventSong {
+  event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String  @map("event_id")
+  song        Song    @relation(fields: [songId], references: [id], onDelete: Cascade)
+  songId      String  @map("song_id")
+  keyOverride String? @map("key_override")
+  notes       String?
+
+  @@id([eventId, songId])
+  @@map("event_songs")
+}
+
+// 10. Tabela de Junção: Participantes do Evento
+model EventParticipant {
+  event          Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId        String @map("event_id")
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String @map("user_id")
+  assignedSkill  Skill? @relation(fields: [assignedSkillId], references: [id], onDelete: SetNull)
+  assignedSkillId String? @map("assigned_skill_id")
+
+  @@id([eventId, userId])
+  @@map("event_participants")
+}
+
+// 11. Tabela de Rastreamento de Estudo
+enum StudyStatus {
+  pending
+  in_progress
+  completed
+}
+
+model UserStudyTracking {
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String      @map("user_id")
+  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId       String      @map("event_id")
+  song          Song        @relation(fields: [songId], references: [id], onDelete: Cascade)
+  songId        String      @map("song_id")
+  status        StudyStatus @default(pending)
+  lastStudiedAt DateTime?   @map("last_studied_at")
+  
+  resources UserStudyResource[]
+
+  @@id([userId, eventId, songId])
+  @@map("user_study_tracking")
+}
+
+// 12. Tabela de Disponibilidade do Usuário
+model UserAvailability {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  dayOfWeek Int      @map("day_of_week") // 0 = Sunday, 6 = Saturday
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+
+  @@map("user_availability")
+}
+
+// 13. Tabela de Recursos de Estudo do Usuário
+model UserStudyResource {
+  id          String   @id @default(uuid())
+
+  tracking    UserStudyTracking @relation(fields: [trackingUserId, trackingEventId, trackingSongId], references: [userId, eventId, songId], onDelete: Cascade)
+  trackingUserId String
+  trackingEventId String
+  trackingSongId String
+  
+  addedByUser   User     @relation(fields: [addedByUserId], references: [id], onDelete: Cascade)
+  addedByUserId String   @map("added_by_user_id")
+  
+  resourceUrl String   @map("resource_url")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("user_study_resources")
+}
