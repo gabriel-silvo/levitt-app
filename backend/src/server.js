@@ -5,6 +5,8 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs'); // Importa o bcrypt
 const jwt = require('jsonwebtoken'); // Importe o JWT
+const crypto = require('crypto');     // Módulo nativo do Node.js para criptografia
+const nodemailer = require('nodemailer'); // Importamos o Nodemailer
 
 const app = express();
 app.use(express.json());
@@ -121,6 +123,113 @@ app.post('/sessions', async (req, res) => {
 
   } catch (error) {
     console.error('Erro no login:', error);
+    return res.status(500).json({ error: 'Ocorreu um erro interno.' });
+  }
+});
+
+// ROTA PARA SOLICITAÇÃO DE REDEFINIÇÃO DE SENHA
+app.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    // Medida de segurança: NUNCA diga ao usuário se o e-mail foi encontrado ou não.
+    // Isso evita que hackers descubram quais e-mails estão cadastrados.
+    if (!user) {
+      return res.status(200).json({ message: 'Se um e-mail correspondente for encontrado, um link de recuperação será enviado.' });
+    }
+
+    // 1. Gera um token aleatório e seguro
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    const passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // 2. Define um tempo de expiração para o token (ex: 1 hora)
+    const passwordResetExpires = new Date(Date.now() + 3600000); // 1 hora a partir de agora
+
+    // 3. Salva o token (hashed) e a data de expiração no banco
+    await prisma.user.update({
+      where: { email },
+      data: {
+        passwordResetToken,
+        passwordResetExpires,
+      },
+    });
+
+    // 4. Configura o Nodemailer (transporter)
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: process.env.MAIL_PORT,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+
+    // 5. Envia o e-mail com o link de redefinição
+    // (Em um app real, a URL seria do seu site/app)
+    const resetURL = `http://localhost:8081/reset-password?token=${resetToken}`; // Apenas exemplo
+    
+    await transporter.sendMail({
+      from: '"Levitt App" <noreply@levitt.app>',
+      to: user.email,
+      subject: 'Redefinição de Senha - Levitt App',
+      html: `<p>Você solicitou uma redefinição de senha. Clique no link a seguir para criar uma nova senha:</p><a href="${resetURL}">${resetURL}</a>`,
+    });
+
+    return res.status(200).json({ message: 'Se um e-mail correspondente for encontrado, um link de recuperação será enviado.' });
+
+  } catch (error) {
+    console.error('Erro no forgot-password:', error);
+    return res.status(500).json({ error: 'Ocorreu um erro interno.' });
+  }
+});
+
+// ROTA PARA EFETIVAMENTE REDEFINIR A SENHA
+app.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token e nova senha são obrigatórios.' });
+  }
+
+  try {
+    // 1. Criptografa o token recebido para comparar com o que está no banco
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // 2. Procura um usuário que tenha esse token E que o token não tenha expirado
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: {
+          gt: new Date(), // 'gt' = greater than (maior que a data/hora atual)
+        },
+      },
+    });
+
+    // 3. Se não encontrar, o token é inválido ou expirou
+    if (!user) {
+      return res.status(400).json({ error: 'Token inválido ou expirado.' });
+    }
+
+    // 4. Criptografa a nova senha
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(password, salt);
+
+    // 5. Atualiza a senha do usuário e LIMPA os campos de redefinição
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: newPasswordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    return res.status(200).json({ message: 'Senha redefinida com sucesso!' });
+
+  } catch (error) {
+    console.error('Erro no reset-password:', error);
     return res.status(500).json({ error: 'Ocorreu um erro interno.' });
   }
 });

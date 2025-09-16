@@ -85,9 +85,11 @@ export default function LoginScreen() {
                         <StyledInput label="Senha" value={password} onChangeText={setPassword} secureTextEntry />
                         
                         <View style={styles.forgotPasswordContainer}>
-                        <TouchableOpacity>
-                            <Text style={{ color: theme.colors.primary }}>Esqueceu a senha?</Text>
-                        </TouchableOpacity>
+                        <Link href="/(auth)/forgot-password" asChild>
+                            <TouchableOpacity>
+                                <Text style={{ color: theme.colors.primary }}>Esqueceu a senha?</Text>
+                            </TouchableOpacity>
+                        </Link>
                         </View>
 
                         <PrimaryButton onPress={handleLogin} disabled={loading}>

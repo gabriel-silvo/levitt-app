@@ -17,6 +17,10 @@ model User {
   username      String?   @unique
   email         String    @unique
   passwordHash  String?   @map("password_hash")
+  // --- CAMPOS NOVOS ---
+  passwordResetToken  String?   @unique @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+  // --- FIM DOS CAMPOS NOVOS ---
   phoneNumber   String?   @map("phone_number")
   birthDate     DateTime? @map("birth_date")
   avatarUrl     String?   @map("avatar_url")
