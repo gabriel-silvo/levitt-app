@@ -6,11 +6,10 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { API_URL } from '../../src/config/api.js';
 
 import PrimaryButton from '../../src/components/PrimaryButton';
 import StyledInput from '../../src/components/StyledInput';
-
-const API_URL = 'http://192.168.1.10:3333'; // Mantenha seu IP aqui
 
 export default function ResetPasswordScreen() {
   const theme = useTheme();

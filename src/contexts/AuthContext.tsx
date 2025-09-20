@@ -3,8 +3,7 @@ import axios from 'axios';
 import { useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-
-const API_URL = 'http://192.168.1.10:3333'; // Mantenha seu IP aqui
+import { API_URL } from "../config/api";
 
 interface User {
   id: string;
