@@ -1,10 +1,12 @@
 // backend/src/server.js
+const { OAuth2Client } = require('google-auth-library');
+const jwt = require('jsonwebtoken');
+const client = new OAuth2Client();
 
 require('dotenv').config(); // Carrega as variáveis do .env
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs'); // Importa o bcrypt
-const jwt = require('jsonwebtoken'); // Importe o JWT
 const crypto = require('crypto');     // Módulo nativo do Node.js para criptografia
 const nodemailer = require('nodemailer'); // Importamos o Nodemailer
 
@@ -231,6 +233,68 @@ app.post('/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Erro no reset-password:', error);
     return res.status(500).json({ error: 'Ocorreu um erro interno.' });
+  }
+});
+
+// ROTA PARA AUTENTICAÇÃO COM GOOGLE
+app.post('/auth/google', async (req, res) => {
+  const { idToken } = req.body;
+
+  try {
+    // 1. Verifica se o idToken recebido é válido, usando a chave do seu app
+    const ticket = await client.verifyIdToken({
+        idToken: idToken,
+        audience: [ // Ele vai checar contra todas as suas chaves
+          process.env.GOOGLE_WEB_CLIENT_ID,
+          process.env.GOOGLE_IOS_CLIENT_ID,
+          process.env.GOOGLE_ANDROID_CLIENT_ID,
+        ],
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      return res.status(401).json({ error: 'Token do Google inválido.' });
+    }
+
+    const { name, email, picture } = payload;
+
+    // 2. Procura se um usuário com este e-mail já existe no seu banco de dados
+    let user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    // 3. Se o usuário NÃO existe, ele o CRIA.
+    if (!user) {
+      // Gera um nome de usuário único a partir do e-mail
+      const username = email.split('@')[0] + Date.now();
+
+      user = await prisma.user.create({
+        data: {
+          email: email,
+          fullName: name || 'Usuário',
+          username: username,
+          avatarUrl: picture,
+          // O passwordHash fica nulo, pois este usuário não tem senha manual
+        },
+      });
+    }
+
+    // 4. Gera o seu próprio token JWT do Levitt para criar a sessão
+    const levittToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: '7d',
+    });
+
+    const { passwordHash: _, ...userWithoutPassword } = user;
+
+    // 5. Retorna os dados do usuário e o token de sessão do Levitt para o app
+    res.status(200).json({
+      user: userWithoutPassword,
+      token: levittToken,
+    });
+
+  } catch (error) {
+    console.error("Erro na autenticação com Google no backend:", error);
+    res.status(401).json({ error: 'Falha na autenticação com Google.' });
   }
 });
 
