@@ -1,4 +1,5 @@
 // app/login.tsx
+import { GoogleSignin, isErrorWithCode, isSuccessResponse, statusCodes } from "@react-native-google-signin/google-signin";
 import { Link } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -22,6 +23,15 @@ export default function LoginScreen() {
     // --- INÍCIO DA NOVA LÓGICA ---
     // 1. Criamos um estado para controlar a visibilidade do teclado
     const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        GoogleSignin.configure({
+            iosClientId: "764286647358-epniuc1q6kovu31prmoo6nofstoncnbt.apps.googleusercontent.com",
+            webClientId: "764286647358-9eolpsvtpg3dbivpm32fb43eh9ss7kvg.apps.googleusercontent.com"
+        })
+    });
 
     // 2. Usamos o useEffect para adicionar e remover os "ouvintes" do teclado
     useEffect(() => {
@@ -63,7 +73,47 @@ export default function LoginScreen() {
         }
     };
 
-    const handleGoogleLogin = () => { /* TODO */ };
+    const handleGoogleSignIn = async () => {
+        try {
+            setIsSubmitting(true);
+            await GoogleSignin.hasPlayServices();
+            const response = await GoogleSignin.signIn();
+            if (isSuccessResponse(response)) {
+                const { idToken, user } = response.data;
+                const { name, email, photo } = user;
+                console.log("!!! DEU CERTO !!!");
+                console.log("---");
+                console.log(response.data);
+                console.log("---");
+                //Navigation.navigate("Account", { name, email, photo });
+            }
+            else {
+                console.log("Google SignIn foi cancelado!!!");
+            }
+            setIsSubmitting(false);
+        }
+        catch (error) {
+            if (isErrorWithCode(error)) {
+                switch (error.code) {
+                    case statusCodes.IN_PROGRESS:
+                        console.log("Google SignIn está em progresso!!!");
+                        break;
+                    case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+                        console.log("Play Services não estão disponíveis!!!");
+                        break;
+                    default:
+                        console.log("---");
+                        console.log(error.code);
+                        console.log("---");
+                }
+            }
+            else {
+                console.log("Um erro ocorreu :( !!!");
+            }
+            setIsSubmitting(false);
+        }
+    };
+
     const handleAppleLogin = () => { /* TODO */ };
 
     return (
@@ -108,7 +158,7 @@ export default function LoginScreen() {
                             Apple
                         </Button>
                         {/* O ícone do Google agora é nosso componente SVG */}
-                        <Button mode="outlined" onPress={handleGoogleLogin} style={styles.socialButton} labelStyle={styles.socialLabel} icon={GoogleLogo}>
+                        <Button mode="outlined" onPress={handleGoogleSignIn} disabled={isSubmitting} style={styles.socialButton} labelStyle={styles.socialLabel} icon={GoogleLogo}>
                             Google
                         </Button>
                         </View>
