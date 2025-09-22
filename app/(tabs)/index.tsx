@@ -1,35 +1,89 @@
-// app/(tabs)/index.tsx
+// app/(tabs)/dashboard.tsx
+import DashboardHeader from '@/src/components/DashboardHeader';
+import ListItemCard from '@/src/components/ListItemCard';
+import PrimaryButton from '@/src/components/PrimaryButton';
+import VerseOfTheDayCard from '@/src/components/VerseOfTheDay';
+import { theme } from '@/src/styles/theme';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Chip, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/contexts/AuthContext';
 
-import PrimaryButton from '../../src/components/PrimaryButton';
-import { useAuth } from '../../src/contexts/AuthContext'; // Importa nosso hook
-
-export default function HomeScreen() {
-  const { logout } = useAuth(); // Pega a função de logout do "cérebro"
-  const theme = useTheme();
+export default function DashboardScreen() {
+  const { logout } = useAuth();
+  // Crie um estado para controlar qual tag está ativa
+  const [selectedTag, setSelectedTag] = React.useState('Ministérios');
 
   const handleLogout = async () => {
     // Simplesmente chama a função centralizada
     await logout();
   };
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.content}>
-        <Text variant="headlineLarge" style={styles.title}>
-          Bem-vindo ao Levitt!
-        </Text>
-        <Text variant="bodyLarge" style={styles.subtitle}>
-          Você está logado.
-        </Text>
+  // Dados de exemplo para as tags
+  const filterTags = [
+    { name: 'Ministérios', count: 2 },
+    { name: 'Escalas', count: 6 },
+    { name: 'Ensaios', count: 1 },
+    { name: 'Músicas', count: 4 },
+  ];
 
-        <PrimaryButton onPress={handleLogout} style={styles.logoutButton}>
-          Sair
-        </PrimaryButton>
-      </View>
+  // Dados de exemplo para a lista
+  const ministryData = {
+    date: { day: '02', month: 'OUT' },
+    time: 'MINISTÉRIO',
+    title: 'Vocal',
+    description: '3 escalas • 5 músicas',
+    members: [
+        { uri: 'https://i.pravatar.cc/150?img=1' },
+        { uri: 'https://i.pravatar.cc/150?img=2' },
+        { uri: 'https://i.pravatar.cc/150?img=3' },
+        { uri: 'https://i.pravatar.cc/150?img=4' },
+    ],
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <DashboardHeader />
+          <VerseOfTheDayCard />
+
+          {/* --- INÍCIO DAS TAGS DE FILTRO --- */}
+          <View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsContainer}>
+              {filterTags.map((tag) => (
+                  <Chip
+                  key={tag.name}
+                  style={[
+                      styles.chip,
+                      selectedTag === tag.name ? styles.chipSelected : styles.chipUnselected,
+                  ]}
+                  textStyle={[
+                      styles.chipText,
+                      selectedTag === tag.name ? styles.chipTextSelected : {},
+                  ]}
+                  onPress={() => setSelectedTag(tag.name)}
+                  >
+                  {`${tag.name} (${tag.count})`}
+                  </Chip>
+              ))}
+              </ScrollView>
+          </View>
+          {/* --- FIM DAS TAGS DE FILTRO --- */}
+
+          {/* --- INÍCIO DA LISTA DINÂMICA --- */}
+          <View style={styles.listContainer}>
+              <ListItemCard {...ministryData} />
+              {/* Adicionar mais cards aqui */}
+          </View>
+          {/* --- FIM DA LISTA DINÂMICA --- */}
+
+          <PrimaryButton onPress={handleLogout} style={styles.logoutButton}>
+            Sair
+          </PrimaryButton>
+
+          <Text variant="headlineLarge">Dashboard</Text>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -37,18 +91,32 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.primary, // Fundo escuro padrão
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+  scrollContainer: {
+    padding: 16,
   },
-  title: {
+  tagsContainer: {
+    marginBottom: 24,
+  },
+  chip: {
+    marginRight: 8,
+    borderRadius: 20,
+  },
+  chipSelected: {
+    backgroundColor: '#BF5AF2', // Cor primária roxa
+  },
+  chipUnselected: {
+    backgroundColor: '#3A3A3C', // Cinza escuro
+  },
+  chipText: {
+    color: '#FFFFFF',
+  },
+  chipTextSelected: {
     fontWeight: 'bold',
   },
-  subtitle: {
-    marginVertical: 16,
+  listContainer: {
+    marginTop: 8,
   },
   logoutButton: {
     marginTop: 32,

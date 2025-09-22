@@ -10,6 +10,7 @@ interface User {
   fullName: string;
   email: string;
   username: string;
+  avatarUrl?: string | null;
 }
 
 interface AuthContextData {
