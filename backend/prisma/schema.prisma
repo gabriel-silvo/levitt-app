@@ -242,3 +242,12 @@ model UserStudyResource {
 
   @@map("user_study_resources")
 }
+
+model DailyVerse {
+  id             String @id @default(uuid())
+  dayOfYear      Int    @unique @map("day_of_year") // De 1 a 366
+  verseText      String @map("verse_text")
+  verseReference String @map("verse_reference")
+
+  @@map("daily_verses")
+}

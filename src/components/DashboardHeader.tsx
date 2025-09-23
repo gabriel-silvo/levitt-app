@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Avatar, IconButton, Text } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
+import { theme } from '../styles/theme';
 
 export default function DashboardHeader() {
   const { user } = useAuth();
@@ -20,8 +21,9 @@ export default function DashboardHeader() {
         </View>
       </TouchableOpacity>
       <IconButton
+        containerColor={theme.colors.surface}
         icon="bell-outline"
-        iconColor="#FFFFFF"
+        iconColor={theme.colors.white}
         size={24}
         onPress={() => { /* Navegar para notificações no futuro */ }}
       />
@@ -44,11 +46,11 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   greetingText: {
-    color: '#A0A0A0',
+    color: theme.colors.reference,
     fontSize: 14,
   },
   userName: {
-    color: '#FFFFFF',
+    color: theme.colors.white,
     fontSize: 18,
     fontWeight: 'bold',
   },

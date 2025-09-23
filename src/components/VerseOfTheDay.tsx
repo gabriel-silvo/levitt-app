@@ -1,41 +1,57 @@
 // src/components/VerseOfTheDayCard.tsx
-import React from 'react';
+import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { ActivityIndicator, Card, Text } from 'react-native-paper';
+import { API_URL } from '../config/api'; // Usamos nossa URL centralizada
+import { theme } from '../styles/theme';
 
 export default function VerseOfTheDayCard() {
-  // No futuro, podemos buscar um versículo real de uma API
-  const verse = "Lâmpada para os meus pés é a tua palavra, e luz para o meu caminho.";
-  const reference = "Salmos 119:105";
+  const [verse, setVerse] = useState('');
+  const [reference, setReference] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchVerse() {
+      try {
+        // 1. Faz a chamada para a nossa nova rota no backend
+        const response = await axios.get(`${API_URL}/verse-of-the-day`);
+        // 2. Salva os dados no estado do componente
+        setVerse(response.data.verseText);
+        setReference(response.data.verseReference);
+      } catch (error) {
+        console.error("Falha ao buscar versículo:", error);
+        // 3. Se falhar, define um versículo padrão
+        setVerse("O Senhor é o meu pastor; nada me faltará.");
+        setReference("Salmos 23:1");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchVerse();
+  }, []); // O array vazio [] garante que isso rode apenas uma vez
 
   return (
     <Card style={styles.card}>
       <Card.Content>
-        <Text style={styles.verseText}>
-            &#34;{verse}&#34;
-        </Text>
-        <Text style={styles.referenceText}>{reference}</Text>
+        {loading ? (
+          // Mostra um indicador de carregamento enquanto busca o versículo
+          <ActivityIndicator animating={true} color={theme.colors.primary} />
+        ) : (
+          <>
+            <Text style={styles.verseText}>&#34;{verse}&#34;</Text>
+            <Text style={styles.referenceText}>{reference}</Text>
+          </>
+        )}
       </Card.Content>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#2C2C2E', // Um cinza um pouco mais claro que o fundo
-    marginBottom: 24,
-  },
-  verseText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  referenceText: {
-    color: '#A0A0A0',
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
+    // Seus estilos existentes podem permanecer aqui
+    card: { /* ... */ },
+    verseText: { /* ... */ },
+    referenceText: { /* ... */ },
 });

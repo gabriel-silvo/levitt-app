@@ -234,6 +234,38 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 
+// ROTA PARA BUSCAR O VERSÍCULO DO DIA
+app.get('/verse-of-the-day', async (req, res) => {
+  try {
+    // 1. Calcula qual é o dia do ano (de 1 a 366)
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+
+    // 2. Busca no banco de dados o versículo para o dia de hoje
+    const verse = await prisma.dailyVerse.findUnique({
+      where: { dayOfYear: dayOfYear },
+    });
+
+    // 3. Se não encontrar um versículo para hoje, retorna um padrão
+    if (!verse) {
+      return res.status(404).json({ 
+        verseText: "O Senhor é o meu pastor; nada me faltará.",
+        verseReference: "Salmos 23:1"
+      });
+    }
+
+    // 4. Se encontrar, retorna o versículo
+    return res.status(200).json(verse);
+
+  } catch (error) {
+    console.error("Erro ao buscar versículo do dia:", error);
+    return res.status(500).json({ error: 'Não foi possível buscar o versículo do dia.' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
 });

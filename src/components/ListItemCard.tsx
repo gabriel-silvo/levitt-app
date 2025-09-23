@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Avatar, Card, Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { theme } from '../styles/theme';
 
 type ListItemCardProps = {
   date: { day: string; month: string };
@@ -57,7 +58,7 @@ export default function ListItemCard({ date, time, title, description, members, 
 }
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: theme.colors.surface,
     marginBottom: 12,
     overflow: 'hidden',
   },
@@ -71,15 +72,15 @@ const styles = StyleSheet.create({
     marginRight: 16,
     minWidth: 50,
   },
-  dateDay: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
-  dateMonth: { color: '#A0A0A0', fontSize: 12, textTransform: 'uppercase' },
-  dateTime: { color: '#A0A0A0', fontSize: 12, marginTop: 4 },
+  dateDay: { color: theme.colors.white, fontSize: 24, fontWeight: 'bold' },
+  dateMonth: { color: theme.colors.reference, fontSize: 12, textTransform: 'uppercase' },
+  dateTime: { color: theme.colors.reference, fontSize: 12, marginTop: 4 },
   detailsContainer: {
     flex: 1,
     justifyContent: 'space-between',
   },
-  title: { color: '#FFF', fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  description: { color: '#A0A0A0', fontSize: 14, marginBottom: 12 },
+  title: { color: theme.colors.white, fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  description: { color: theme.colors.reference, fontSize: 14, marginBottom: 12 },
   bottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -97,13 +98,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statText: {
-    color: '#A0A0A0',
+    color: theme.colors.reference,
     marginLeft: 4,
     marginRight: 12,
     fontSize: 12,
   },
   bottomBorder: {
     height: 3,
-    backgroundColor: '#BF5AF2', // Roxo
+    backgroundColor: theme.colors.primary, // Roxo
   },
 });
