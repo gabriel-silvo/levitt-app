@@ -34,10 +34,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     async function loadData() {
       const storedToken = await SecureStore.getItemAsync('userToken');
+
       if (storedToken) {
-        setToken(storedToken);
+        // Se encontrarmos um token, o colocamos no cabeçalho do Axios
         axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-        // Poderíamos buscar os dados do usuário aqui também com uma rota /me
+
+        try {
+          // E AGORA BUSCAMOS OS DADOS DO USUÁRIO
+          const response = await axios.get(`${API_URL}/me`);
+          setUser(response.data); // Salvamos os dados do usuário no estado
+          setToken(storedToken); // Confirmamos o token no estado
+        } catch (error) {
+          // Se o token for inválido, limpamos tudo
+          console.error("Token inválido, fazendo logout.", error);
+          logout(); 
+        }
       }
       setLoading(false);
     }

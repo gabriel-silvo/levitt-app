@@ -13,6 +13,25 @@ app.use(express.json());
 const prisma = new PrismaClient();
 const PORT = 3333;
 
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Token não fornecido.' });
+  }
+
+  const [, token] = authHeader.split(' ');
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.id; // Adiciona o ID do usuário à requisição
+    return next();
+  } catch (error) {
+    console.error('Erro ao validar token: ', error);
+    return res.status(401).json({ error: 'Token inválido.' });
+  }
+};
+
 app.get('/', (req, res) => {
   res.json({ message: 'Bem-vindo à API do Levitt!' });
 });
@@ -231,6 +250,26 @@ app.post('/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Erro no reset-password:', error);
     return res.status(500).json({ error: 'Ocorreu um erro interno.' });
+  }
+});
+
+// ROTA PARA BUSCAR DADOS DO USUÁRIO LOGADO
+app.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    return res.status(200).json(userWithoutPassword);
+
+  } catch (error) {
+    console.error("Erro interno do servidor: ", error);
+    return res.status(500).json({ error: 'Erro interno do servidor.' });
   }
 });
 
