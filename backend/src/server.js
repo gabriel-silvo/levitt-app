@@ -15,6 +15,24 @@ app.use(express.json());
 const prisma = new PrismaClient();
 const PORT = 3333;
 
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Token não fornecido.' });
+  }
+
+  const [, token] = authHeader.split(' ');
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.id; // Adiciona o ID do usuário à requisição
+    return next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token inválido.' });
+  }
+};
+
 app.get('/', (req, res) => {
   res.json({ message: 'Bem-vindo à API do Levitt!' });
 });
@@ -295,6 +313,100 @@ app.post('/auth/google', async (req, res) => {
   } catch (error) {
     console.error("Erro na autenticação com Google no backend:", error);
     res.status(401).json({ error: 'Falha na autenticação com Google.' });
+  }
+});
+
+// ROTA PARA BUSCAR DADOS DO USUÁRIO LOGADO
+app.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    return res.status(200).json(userWithoutPassword);
+
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro interno do servidor.' });
+  }
+});
+
+// ROTA PARA BUSCAR O VERSÍCULO DO DIA
+app.get('/verse-of-the-day', async (req, res) => {
+  try {
+    // 1. Calcula qual é o dia do ano (de 1 a 366)
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+
+    // 2. Busca no banco de dados o versículo para o dia de hoje
+    const verse = await prisma.dailyVerse.findUnique({
+      where: { dayOfYear: dayOfYear },
+    });
+
+    // 3. Se não encontrar um versículo para hoje, retorna um padrão
+    if (!verse) {
+      return res.status(404).json({ 
+        verseText: "O Senhor é o meu pastor; nada me faltará.",
+        verseReference: "Salmos 23:1"
+      });
+    }
+
+    // 4. Se encontrar, retorna o versículo
+    return res.status(200).json(verse);
+
+  } catch (error) {
+    console.error("Erro ao buscar versículo do dia:", error);
+    return res.status(500).json({ error: 'Não foi possível buscar o versículo do dia.' });
+  }
+});
+
+// ROTA PARA BUSCAR TODOS OS DADOS INICIAIS DA DASHBOARD
+app.get('/initial-data', authMiddleware, async (req, res) => {
+  try {
+    // --- Lógica da Rota /me ---
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+    const { passwordHash: _, ...userWithoutPassword } = user;
+
+    // --- Lógica da Rota /verse-of-the-day ---
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now - start;
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+
+    let verse = await prisma.dailyVerse.findUnique({
+      where: { dayOfYear: dayOfYear },
+    });
+
+    if (!verse) {
+      verse = { 
+        verseText: "O Senhor é o meu pastor; nada me faltará.",
+        verseReference: "Salmos 23:1"
+      };
+    }
+
+    // --- Combina tudo em uma única resposta ---
+    return res.status(200).json({
+      user: userWithoutPassword,
+      dailyVerse: verse,
+    });
+
+  } catch (error) {
+    console.error("Erro ao buscar dados iniciais:", error);
+    return res.status(500).json({ error: 'Erro interno do servidor.' });
   }
 });
 

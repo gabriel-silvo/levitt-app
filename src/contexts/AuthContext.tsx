@@ -12,6 +12,13 @@ interface User {
   fullName: string;
   email: string;
   username: string;
+  avatarUrl: string;
+}
+
+// Defina a estrutura do nosso versículo
+interface DailyVerse {
+  verseText: string;
+  verseReference: string;
 }
 
 interface AuthContextData {
@@ -22,6 +29,7 @@ interface AuthContextData {
   register: (data: any) => Promise<void>;
   logout: () => void;
   signInWithGoogle: () => Promise<void>;
+  dailyVerse: DailyVerse | null; // <-- Adicione o versículo aqui
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -32,6 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const segments = useSegments();
+  const [dailyVerse, setDailyVerse] = useState<DailyVerse | null>(null); // <-- Novo estado
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -43,10 +52,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     async function loadData() {
       const storedToken = await SecureStore.getItemAsync('userToken');
+
       if (storedToken) {
-        setToken(storedToken);
         axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-        // Poderíamos buscar os dados do usuário aqui também com uma rota /me
+        try {
+          // AGORA CHAMAMOS A NOVA ROTA /initial-data
+          const response = await axios.get(`${API_URL}/initial-data`);
+
+          // E salvamos AMBOS os dados de uma vez
+          setUser(response.data.user);
+          setDailyVerse(response.data.dailyVerse);
+          setToken(storedToken);
+        } catch (error) {
+          console.error("Token inválido ou falha ao buscar dados, fazendo logout.", error);
+          logout(); 
+        }
       }
       setLoading(false);
     }
@@ -136,7 +156,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, loading, login, register, logout, signInWithGoogle }}>
+    <AuthContext.Provider value={{ token, user, loading, login, register, logout, signInWithGoogle, dailyVerse }}>
       {children}
     </AuthContext.Provider>
   );

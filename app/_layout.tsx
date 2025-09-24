@@ -1,21 +1,16 @@
 // app/_layout.tsx
-import { Stack } from 'expo-router';
+import { Slot } from 'expo-router'; // Usamos Slot em vez de Stack aqui
 import { PaperProvider } from 'react-native-paper';
-import { AuthProvider } from '../src/contexts/AuthContext'; // 1. Importamos nosso Provedor
+import { AuthProvider } from '../src/contexts/AuthContext';
 import { theme } from '../src/styles/theme';
 
 export default function RootLayout() {
+  // O AuthProvider e o PaperProvider continuam envolvendo todo o app
   return (
-    // 2. Envolvemos tudo com o AuthProvider
     <AuthProvider>
       <PaperProvider theme={theme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          {/* Por enquanto, as telas permanecem as mesmas */}
-          <Stack.Screen name="index" />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="signup" />
-          <Stack.Screen name="(tabs)" /> 
-        </Stack>
+        {/* O Slot renderiza o layout filho apropriado (seja de '(auth)' ou '(tabs)') */}
+        <Slot />
       </PaperProvider>
     </AuthProvider>
   );
