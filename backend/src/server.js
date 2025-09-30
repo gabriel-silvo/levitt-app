@@ -90,7 +90,19 @@ app.post('/users', async (req, res) => {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     const { passwordHash: _, ...userWithoutPassword } = user;
-    return res.status(201).json({ user: userWithoutPassword, token: token });
+
+    // --- INÍCIO DA NOVA LÓGICA ---
+    // Busca também o versículo do dia
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    let verse = await prisma.dailyVerse.findUnique({
+      where: { month_day: { month, day } },
+    });
+    if (!verse) { /* ... sua lógica de fallback para o versículo ... */ }
+    // --- FIM DA NOVA LÓGICA ---
+
+    return res.status(201).json({ user: userWithoutPassword, token: token, dailyVerse: verse });
 
   } catch (error) {
     console.error('Erro ao criar usuário:', error);
@@ -135,10 +147,22 @@ app.post('/sessions', async (req, res) => {
 
     const { passwordHash: _, ...userWithoutPassword } = user;
 
+    // --- INÍCIO DA NOVA LÓGICA ---
+    // Busca também o versículo do dia
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    let verse = await prisma.dailyVerse.findUnique({
+      where: { month_day: { month, day } },
+    });
+    if (!verse) { /* ... sua lógica de fallback para o versículo ... */ }
+    // --- FIM DA NOVA LÓGICA ---
+
     // 5. Retorna os dados do usuário e o crachá (token)
     return res.status(200).json({
       user: userWithoutPassword,
       token: token,
+      dailyVerse: verse, // <-- Adiciona o versículo à resposta
     });
 
   } catch (error) {
@@ -304,10 +328,22 @@ app.post('/auth/google', async (req, res) => {
 
     const { passwordHash: _, ...userWithoutPassword } = user;
 
+    // --- INÍCIO DA NOVA LÓGICA ---
+    // Busca também o versículo do dia
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    let verse = await prisma.dailyVerse.findUnique({
+      where: { month_day: { month, day } },
+    });
+    if (!verse) { /* ... sua lógica de fallback para o versículo ... */ }
+    // --- FIM DA NOVA LÓGICA ---
+
     // 5. Retorna os dados do usuário e o token de sessão do Levitt para o app
     res.status(200).json({
       user: userWithoutPassword,
       token: levittToken,
+      dailyVerse: verse
     });
 
   } catch (error) {
@@ -336,36 +372,36 @@ app.get('/me', authMiddleware, async (req, res) => {
 });
 
 // ROTA PARA BUSCAR O VERSÍCULO DO DIA
-app.get('/verse-of-the-day', async (req, res) => {
-  try {
-    // 1. Calcula qual é o dia do ano (de 1 a 366)
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now - start;
-    const oneDay = 1000 * 60 * 60 * 24;
-    const dayOfYear = Math.floor(diff / oneDay);
+// app.get('/verse-of-the-day', async (req, res) => {
+//   try {
+//     // 1. Calcula qual é o dia do ano (de 1 a 366)
+//     const now = new Date();
+//     const start = new Date(now.getFullYear(), 0, 0);
+//     const diff = now - start;
+//     const oneDay = 1000 * 60 * 60 * 24;
+//     const dayOfYear = Math.floor(diff / oneDay);
 
-    // 2. Busca no banco de dados o versículo para o dia de hoje
-    const verse = await prisma.dailyVerse.findUnique({
-      where: { dayOfYear: dayOfYear },
-    });
+//     // 2. Busca no banco de dados o versículo para o dia de hoje
+//     const verse = await prisma.dailyVerse.findUnique({
+//       where: { dayOfYear: dayOfYear },
+//     });
 
-    // 3. Se não encontrar um versículo para hoje, retorna um padrão
-    if (!verse) {
-      return res.status(404).json({ 
-        verseText: "O Senhor é o meu pastor; nada me faltará.",
-        verseReference: "Salmos 23:1"
-      });
-    }
+//     // 3. Se não encontrar um versículo para hoje, retorna um padrão
+//     if (!verse) {
+//       return res.status(404).json({ 
+//         verseText: "O Senhor é o meu pastor; nada me faltará.",
+//         verseReference: "Salmos 23:1"
+//       });
+//     }
 
-    // 4. Se encontrar, retorna o versículo
-    return res.status(200).json(verse);
+//     // 4. Se encontrar, retorna o versículo
+//     return res.status(200).json(verse);
 
-  } catch (error) {
-    console.error("Erro ao buscar versículo do dia:", error);
-    return res.status(500).json({ error: 'Não foi possível buscar o versículo do dia.' });
-  }
-});
+//   } catch (error) {
+//     console.error("Erro ao buscar versículo do dia:", error);
+//     return res.status(500).json({ error: 'Não foi possível buscar o versículo do dia.' });
+//   }
+// });
 
 // ROTA PARA BUSCAR TODOS OS DADOS INICIAIS DA DASHBOARD
 app.get('/initial-data', authMiddleware, async (req, res) => {
@@ -382,19 +418,27 @@ app.get('/initial-data', authMiddleware, async (req, res) => {
 
     // --- Lógica da Rota /verse-of-the-day ---
     const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now - start;
-    const oneDay = 1000 * 60 * 60 * 24;
-    const dayOfYear = Math.floor(diff / oneDay);
+    const month = now.getMonth() + 1; // getMonth() é 0-11, então adicionamos 1
+    const day = now.getDate();
 
+    // Busca no banco usando a combinação de mês e dia
     let verse = await prisma.dailyVerse.findUnique({
-      where: { dayOfYear: dayOfYear },
+      where: { 
+        month_day: { // Prisma usa 'month_day' para o unique compound key
+          month: month,
+          day: day 
+        }
+      },
     });
 
     if (!verse) {
-      verse = { 
+      // Fallback caso não haja versículo para o dia (ex: 29/Fev em ano não bissexto)
+      verse = await prisma.dailyVerse.findUnique({
+        where: { month_day: { month: 1, day: 1 } } // Pega o do dia 1º de Janeiro como padrão
+      }) || { 
         verseText: "O Senhor é o meu pastor; nada me faltará.",
-        verseReference: "Salmos 23:1"
+        verseReference: "Salmos 23:1",
+        version: "NVI"
       };
     }
 

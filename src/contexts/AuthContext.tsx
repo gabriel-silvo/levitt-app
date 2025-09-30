@@ -91,11 +91,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   async function validateGoogleToken(idToken: string) {
     try {
       const apiResponse = await axios.post(`${API_URL}/auth/google`, { idToken });
-      const { token: newToken, user: userData } = apiResponse.data;
+      const { token: newToken, user: userData, dailyVerse: verseData } = apiResponse.data;
 
       // Salva o token do LEVITT e os dados do usuário no contexto
       setToken(newToken);
       setUser(userData);
+      setDailyVerse(verseData);
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       await SecureStore.setItemAsync('userToken', newToken);
 
@@ -131,19 +132,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // --- FIM DA NOVA LÓGICA ---
 
   async function login(emailOrUsername: string, password: string) {
-    const response = await axios.post(`${API_URL}/sessions`, { emailOrUsername, password });
-    const { token: newToken, user: userData } = response.data;
-    setToken(newToken);
-    setUser(userData);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-    await SecureStore.setItemAsync('userToken', newToken);
-  }
+  const response = await axios.post(`${API_URL}/sessions`, { emailOrUsername, password });
+  // Agora pegamos 'dailyVerse' da resposta também
+  const { token: newToken, user: userData, dailyVerse: verseData } = response.data;
+  
+  setToken(newToken);
+  setUser(userData);
+  setDailyVerse(verseData); // <-- Salvamos o versículo no estado
+  
+  axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+  await SecureStore.setItemAsync('userToken', newToken);
+}
   
   async function register(data: any) {
     const response = await axios.post(`${API_URL}/users`, data);
-    const { token: newToken, user: userData } = response.data;
+    const { token: newToken, user: userData, dailyVerse: verseData } = response.data;
     setToken(newToken);
     setUser(userData);
+    setDailyVerse(verseData);
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     await SecureStore.setItemAsync('userToken', newToken);
   }

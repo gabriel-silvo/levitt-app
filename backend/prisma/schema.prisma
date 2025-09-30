@@ -245,9 +245,12 @@ model UserStudyResource {
 
 model DailyVerse {
   id             String @id @default(uuid())
-  dayOfYear      Int    @unique @map("day_of_year") // De 1 a 366
+  month          Int    // De 1 a 12
+  day            Int    // De 1 a 31
   verseText      String @map("verse_text")
   verseReference String @map("verse_reference")
+  version        String
 
+  @@unique([month, day]) // Garante que só haja um versículo por data
   @@map("daily_verses")
 }
