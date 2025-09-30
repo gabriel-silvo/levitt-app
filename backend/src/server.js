@@ -454,6 +454,118 @@ app.get('/initial-data', authMiddleware, async (req, res) => {
   }
 });
 
+// ROTA PARA BUSCAR AS ESTATÍSTICAS DA DASHBOARD
+app.get('/dashboard-stats', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // 1. Contar Ministérios
+    const ministryCount = await prisma.ministryMember.count({
+      where: { userId: userId },
+    });
+
+    // 2. Contar Escalas futuras
+    const scaleCount = await prisma.event.count({
+      where: {
+        type: 'scale',
+        eventDate: {
+          gte: new Date(), // 'gte' = greater than or equal to (hoje ou no futuro)
+        },
+        participants: {
+          some: { userId: userId },
+        },
+      },
+    });
+
+    // 3. Contar Ensaios futuros
+    const rehearsalCount = await prisma.event.count({
+      where: {
+        type: 'rehearsal',
+        eventDate: {
+          gte: new Date(),
+        },
+        participants: {
+          some: { userId: userId },
+        },
+      },
+    });
+
+    // 4. Contar Músicas (de todos os ministérios do usuário)
+    const ministries = await prisma.ministryMember.findMany({
+        where: { userId: userId },
+        select: { ministryId: true }
+    });
+    const ministryIds = ministries.map(m => m.ministryId);
+
+    const songCount = await prisma.song.count({
+        where: {
+            ministryId: {
+                in: ministryIds
+            }
+        }
+    });
+
+    // 5. Retorna o objeto com todas as contagens
+    return res.status(200).json({
+      ministries: ministryCount,
+      scales: scaleCount,
+      rehearsals: rehearsalCount,
+      songs: songCount,
+    });
+
+  } catch (error) {
+    console.error("Erro ao buscar estatísticas da dashboard:", error);
+    return res.status(500).json({ error: 'Erro interno do servidor.' });
+  }
+});
+
+// ROTA PARA BUSCAR OS MINISTÉRIOS DO USUÁRIO LOGADO
+app.get('/ministries', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // 1. Encontra todos os registros de 'membro de ministério' para o usuário
+    const memberships = await prisma.ministryMember.findMany({
+      where: { userId: userId },
+      // 2. Inclui os dados completos de cada ministério associado
+      include: {
+        ministry: {
+          // 3. Dentro de cada ministério, inclui contagens de outros dados
+          include: {
+            _count: {
+              select: {
+                members: true, // Conta o total de membros no ministério
+                songs: true,   // Conta o total de músicas
+                events: {      // Conta apenas as escalas futuras
+                  where: {
+                    type: 'scale',
+                    eventDate: { gte: new Date() }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // 4. Formata os dados para ficarem mais fáceis de usar no frontend
+    const formattedMinistries = memberships.map(membership => ({
+      id: membership.ministry.id,
+      name: membership.ministry.name,
+      memberCount: membership.ministry._count.members,
+      songCount: membership.ministry._count.songs,
+      scaleCount: membership.ministry._count.events
+    }));
+
+    return res.status(200).json(formattedMinistries);
+
+  } catch (error) {
+    console.error("Erro ao buscar ministérios:", error);
+    return res.status(500).json({ error: 'Erro interno do servidor.' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
 });

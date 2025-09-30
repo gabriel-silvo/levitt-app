@@ -1,44 +1,73 @@
-// app/(tabs)/dashboard.tsx
+// app/(tabs)/index.tsx
 import DashboardHeader from '@/src/components/DashboardHeader';
 import ListItemCard from '@/src/components/ListItemCard';
 import VerseOfTheDayCard from '@/src/components/VerseOfTheDay';
 import { theme } from '@/src/styles/theme';
-import React from 'react';
+import axios from 'axios'; // Garanta que axios está importado
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { API_URL } from '../../src/config/api'; // Garanta que a API_URL está importada
 import { useAuth } from '../../src/contexts/AuthContext';
+
+// Definimos a "forma" de um objeto de ministério
+interface Ministry {
+  id: string;
+  name: string;
+  memberCount: number;
+  songCount: number;
+  scaleCount: number;
+}
 
 export default function DashboardScreen() {
   // Pegamos TUDO do contexto. A tela não busca mais nada.
   const { logout, dailyVerse, loading } = useAuth();
   const [selectedTag, setSelectedTag] = React.useState('Ministérios');
+  const [stats, setStats] = useState({
+    ministries: 0,
+    scales: 0,
+    rehearsals: 0,
+    songs: 0,
+  }); // Criamos um estado para guardar as estatísticas
+  // Criamos um estado para guardar a lista de ministérios
+  const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState(true);
+
+  // Atualizamos o useEffect para buscar as estatísticas E a lista inicial
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingList(true);
+      try {
+        // Buscamos os stats (como antes)
+        const statsResponse = await axios.get(`${API_URL}/dashboard-stats`);
+        setStats(statsResponse.data);
+
+        // Buscamos a lista de ministérios (a tag padrão)
+        const ministriesResponse = await axios.get(`${API_URL}/ministries`);
+        setMinistries(ministriesResponse.data);
+
+      } catch (error) {
+        console.error("Erro ao buscar dados da dashboard:", error);
+      } finally {
+        setIsLoadingList(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Tornamos os dados das tags dinâmicos
+  const filterTags = [
+    { name: 'Ministérios', count: stats.ministries },
+    { name: 'Escalas', count: stats.scales },
+    { name: 'Ensaios', count: stats.rehearsals },
+    { name: 'Músicas', count: stats.songs },
+  ];
 
   const handleLogout = async () => {
     // Simplesmente chama a função centralizada
     await logout();
-  };
-
-  // Dados de exemplo para as tags
-  const filterTags = [
-    { name: 'Ministérios', count: 2 },
-    { name: 'Escalas', count: 6 },
-    { name: 'Ensaios', count: 1 },
-    { name: 'Músicas', count: 4 },
-  ];
-
-  // Dados de exemplo para a lista
-  const ministryData = {
-    date: { day: '02', month: 'OUT' },
-    time: '19H30',
-    title: 'Ministério',
-    description: '3 escalas • 5 músicas',
-    members: [
-        { uri: 'https://i.pravatar.cc/150?img=1' },
-        { uri: 'https://i.pravatar.cc/150?img=2' },
-        { uri: 'https://i.pravatar.cc/150?img=3' },
-        { uri: 'https://i.pravatar.cc/150?img=4' },
-    ],
   };
 
   return (
@@ -71,7 +100,7 @@ export default function DashboardScreen() {
                 ]}
                 onPress={() => setSelectedTag(tag.name)}
               >
-                {`${tag.count.toString().padStart(2, '0')} ${tag.name}`}
+                {`${tag.count > 0 ? tag.count.toString().padStart(2, '0') + ' ' : ''}${tag.name}`}
               </Chip>
             ))}
             </ScrollView>
@@ -80,8 +109,22 @@ export default function DashboardScreen() {
 
         {/* --- INÍCIO DA LISTA DINÂMICA --- */}
         <View style={styles.listContainer}>
-            <ListItemCard {...ministryData} />
-            {/* Adicionar mais cards aqui */}
+          {/* Se a tag 'Ministérios' estiver selecionada, renderiza a lista */}
+          {selectedTag === 'Ministérios' && (
+            <>
+              {ministries.map((ministry) => (
+                <ListItemCard
+                  key={ministry.id}
+                  date={{ day: ministry.memberCount.toString(), month: 'Membros' }}
+                  time={`${ministry.songCount} Músicas`}
+                  title={ministry.name}
+                  description={`${ministry.scaleCount} escalas futuras`}
+                  // members e stats podem ser omitidos ou adaptados
+                />
+              ))}
+            </>
+          )}
+          {/* No futuro, adicionaremos 'else if' para as outras tags aqui */}
         </View>
         {/* --- FIM DA LISTA DINÂMICA --- */}
 
