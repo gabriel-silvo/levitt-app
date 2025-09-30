@@ -50,6 +50,7 @@ export default function DashboardScreen() {
         <VerseOfTheDayCard 
           verse={dailyVerse?.verseText || ''}
           reference={dailyVerse?.verseReference || ''}
+          version={dailyVerse?.version || ''}
           loading={loading} // Usamos o estado de loading principal do app
         />
 

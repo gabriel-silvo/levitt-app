@@ -19,6 +19,7 @@ interface User {
 interface DailyVerse {
   verseText: string;
   verseReference: string;
+  version: string;
 }
 
 interface AuthContextData {
@@ -157,6 +158,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   async function logout() {
     setToken(null);
     setUser(null);
+    setDailyVerse(null);
     delete axios.defaults.headers.common['Authorization'];
     await SecureStore.deleteItemAsync('userToken');
   }

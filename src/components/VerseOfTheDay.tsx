@@ -8,10 +8,11 @@ import { theme } from '../styles/theme';
 type Props = {
   verse: string;
   reference: string;
+  version: string;
   loading: boolean;
 };
 
-export default function VerseOfTheDayCard({ verse, reference, loading }: Props) {
+export default function VerseOfTheDayCard({ verse, reference, version, loading }: Props) {
   // Nenhuma lógica de busca de dados aqui. Apenas renderização.
   return (
     <Card style={styles.card}>
@@ -20,8 +21,8 @@ export default function VerseOfTheDayCard({ verse, reference, loading }: Props) 
           <ActivityIndicator animating={true} color={theme.colors.primary} />
         ) : (
           <>
-            <Text style={styles.verseText}>"{verse}"</Text>
-            <Text style={styles.referenceText}>{reference}</Text>
+            <Text style={styles.verseText}>{verse}</Text>
+            <Text style={styles.referenceText}>{reference} ({version})</Text>
           </>
         )}
       </Card.Content>
@@ -36,14 +37,14 @@ const styles = StyleSheet.create({
   },
   verseText: {
     color: theme.colors.white,
-    fontSize: 16,
-    fontStyle: 'italic',
+    fontSize: 14,
+    //fontStyle: 'italic',
     textAlign: 'center',
     marginBottom: 8,
   },
   referenceText: {
     color: theme.colors.reference,
-    fontSize: 14,
+    fontSize: 12,
     textAlign: 'center',
     fontWeight: 'bold',
   },
