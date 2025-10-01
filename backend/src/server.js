@@ -371,86 +371,29 @@ app.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
-// ROTA PARA BUSCAR O VERSÍCULO DO DIA
-// app.get('/verse-of-the-day', async (req, res) => {
-//   try {
-//     // 1. Calcula qual é o dia do ano (de 1 a 366)
-//     const now = new Date();
-//     const start = new Date(now.getFullYear(), 0, 0);
-//     const diff = now - start;
-//     const oneDay = 1000 * 60 * 60 * 24;
-//     const dayOfYear = Math.floor(diff / oneDay);
-
-//     // 2. Busca no banco de dados o versículo para o dia de hoje
-//     const verse = await prisma.dailyVerse.findUnique({
-//       where: { dayOfYear: dayOfYear },
-//     });
-
-//     // 3. Se não encontrar um versículo para hoje, retorna um padrão
-//     if (!verse) {
-//       return res.status(404).json({ 
-//         verseText: "O Senhor é o meu pastor; nada me faltará.",
-//         verseReference: "Salmos 23:1"
-//       });
-//     }
-
-//     // 4. Se encontrar, retorna o versículo
-//     return res.status(200).json(verse);
-
-//   } catch (error) {
-//     console.error("Erro ao buscar versículo do dia:", error);
-//     return res.status(500).json({ error: 'Não foi possível buscar o versículo do dia.' });
-//   }
-// });
-
-// ROTA PARA BUSCAR TODOS OS DADOS INICIAIS DA DASHBOARD
-app.get('/initial-data', authMiddleware, async (req, res) => {
+// ROTA PARA BUSCAR O VERSÍCULO DO DIA (DEDICADA)
+app.get('/verse-of-the-day', async (req, res) => {
   try {
-    // --- Lógica da Rota /me ---
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado.' });
-    }
-    const { passwordHash: _, ...userWithoutPassword } = user;
-
-    // --- Lógica da Rota /verse-of-the-day ---
     const now = new Date();
-    const month = now.getMonth() + 1; // getMonth() é 0-11, então adicionamos 1
+    const month = now.getMonth() + 1;
     const day = now.getDate();
 
-    // Busca no banco usando a combinação de mês e dia
     let verse = await prisma.dailyVerse.findUnique({
-      where: { 
-        month_day: { // Prisma usa 'month_day' para o unique compound key
-          month: month,
-          day: day 
-        }
-      },
+      where: { month_day: { month, day } },
     });
 
     if (!verse) {
-      // Fallback caso não haja versículo para o dia (ex: 29/Fev em ano não bissexto)
-      verse = await prisma.dailyVerse.findUnique({
-        where: { month_day: { month: 1, day: 1 } } // Pega o do dia 1º de Janeiro como padrão
-      }) || { 
+      verse = { 
         verseText: "O Senhor é o meu pastor; nada me faltará.",
         verseReference: "Salmos 23:1",
         version: "NVI"
       };
     }
 
-    // --- Combina tudo em uma única resposta ---
-    return res.status(200).json({
-      user: userWithoutPassword,
-      dailyVerse: verse,
-    });
-
+    return res.status(200).json(verse);
   } catch (error) {
-    console.error("Erro ao buscar dados iniciais:", error);
-    return res.status(500).json({ error: 'Erro interno do servidor.' });
+    console.error("Erro ao buscar versículo do dia:", error);
+    return res.status(500).json({ error: 'Não foi possível buscar o versículo do dia.' });
   }
 });
 
@@ -519,28 +462,28 @@ app.get('/dashboard-stats', authMiddleware, async (req, res) => {
   }
 });
 
-// ROTA PARA BUSCAR OS MINISTÉRIOS DO USUÁRIO LOGADO
+// ROTA PARA BUSCAR OS MINISTÉRIOS DO USUÁRIO LOGADO (VERSÃO APRIMORADA)
 app.get('/ministries', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId;
 
-    // 1. Encontra todos os registros de 'membro de ministério' para o usuário
     const memberships = await prisma.ministryMember.findMany({
       where: { userId: userId },
-      // 2. Inclui os dados completos de cada ministério associado
       include: {
         ministry: {
-          // 3. Dentro de cada ministério, inclui contagens de outros dados
           include: {
             _count: {
               select: {
-                members: true, // Conta o total de membros no ministério
-                songs: true,   // Conta o total de músicas
-                events: {      // Conta apenas as escalas futuras
-                  where: {
-                    type: 'scale',
-                    eventDate: { gte: new Date() }
-                  }
+                songs: true,
+                events: { where: { type: 'scale', eventDate: { gte: new Date() } } }
+              }
+            },
+            // Busca os primeiros 4 membros do ministério para os avatares
+            members: {
+              take: 4,
+              include: {
+                user: {
+                  select: { avatarUrl: true, fullName: true }
                 }
               }
             }
@@ -549,13 +492,16 @@ app.get('/ministries', authMiddleware, async (req, res) => {
       }
     });
 
-    // 4. Formata os dados para ficarem mais fáceis de usar no frontend
-    const formattedMinistries = memberships.map(membership => ({
-      id: membership.ministry.id,
-      name: membership.ministry.name,
-      memberCount: membership.ministry._count.members,
-      songCount: membership.ministry._count.songs,
-      scaleCount: membership.ministry._count.events
+    // Formata os dados para o frontend
+    const formattedMinistries = memberships.map(({ ministry }) => ({
+      id: ministry.id,
+      name: ministry.name,
+      imageUrl: ministry.imageUrl, // Supondo que você adicionará um campo imageUrl ao modelo Ministry
+      songCount: ministry._count.songs,
+      scaleCount: ministry._count.events,
+      members: ministry.members.map(member => ({
+        uri: member.user.avatarUrl || `https://ui-avatars.com/api/?name=${member.user.fullName}`
+      }))
     }));
 
     return res.status(200).json(formattedMinistries);
@@ -563,6 +509,45 @@ app.get('/ministries', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Erro ao buscar ministérios:", error);
     return res.status(500).json({ error: 'Erro interno do servidor.' });
+  }
+});
+
+// ROTA PARA CRIAR UM NOVO MINISTÉRIO
+app.post('/ministries', authMiddleware, async (req, res) => {
+  const { name } = req.body;
+  const userId = req.userId;
+
+  if (!name) {
+    return res.status(400).json({ error: 'O nome do ministério é obrigatório.' });
+  }
+
+  try {
+    // Usamos uma transação para garantir que as duas operações ocorram com sucesso
+    const newMinistry = await prisma.$transaction(async (prisma) => {
+      // 1. Cria o ministério e define o usuário logado como o líder
+      const ministry = await prisma.ministry.create({
+        data: {
+          name: name,
+          leaderId: userId,
+        },
+      });
+
+      // 2. Adiciona o usuário como um membro do ministério que acabou de criar
+      await prisma.ministryMember.create({
+        data: {
+          ministryId: ministry.id,
+          userId: userId,
+          role: 'admin', // O líder também é um administrador
+        },
+      });
+
+      return ministry;
+    });
+
+    return res.status(201).json(newMinistry);
+  } catch (error) {
+    console.error("Erro ao criar ministério:", error);
+    return res.status(500).json({ error: 'Não foi possível criar o ministério.' });
   }
 });
 

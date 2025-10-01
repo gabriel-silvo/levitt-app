@@ -81,6 +81,7 @@ model UserSkill {
 model Ministry {
   id        String   @id @default(uuid())
   name      String
+  imageUrl  String?  @map("image_url")
   
   church    Church?  @relation(fields: [churchId], references: [id], onDelete: SetNull)
   churchId  String?  @map("church_id")

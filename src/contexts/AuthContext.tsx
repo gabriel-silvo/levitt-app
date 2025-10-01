@@ -15,13 +15,6 @@ interface User {
   avatarUrl: string;
 }
 
-// Defina a estrutura do nosso versículo
-interface DailyVerse {
-  verseText: string;
-  verseReference: string;
-  version: string;
-}
-
 interface AuthContextData {
   token: string | null;
   user: User | null;
@@ -30,7 +23,6 @@ interface AuthContextData {
   register: (data: any) => Promise<void>;
   logout: () => void;
   signInWithGoogle: () => Promise<void>;
-  dailyVerse: DailyVerse | null; // <-- Adicione o versículo aqui
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -41,7 +33,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const segments = useSegments();
-  const [dailyVerse, setDailyVerse] = useState<DailyVerse | null>(null); // <-- Novo estado
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -57,12 +48,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (storedToken) {
         axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         try {
-          // AGORA CHAMAMOS A NOVA ROTA /initial-data
-          const response = await axios.get(`${API_URL}/initial-data`);
+          const response = await axios.get(`${API_URL}/me`);
 
           // E salvamos AMBOS os dados de uma vez
           setUser(response.data.user);
-          setDailyVerse(response.data.dailyVerse);
           setToken(storedToken);
         } catch (error) {
           console.error("Token inválido ou falha ao buscar dados, fazendo logout.", error);
@@ -97,7 +86,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Salva o token do LEVITT e os dados do usuário no contexto
       setToken(newToken);
       setUser(userData);
-      setDailyVerse(verseData);
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       await SecureStore.setItemAsync('userToken', newToken);
 
@@ -139,7 +127,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   setToken(newToken);
   setUser(userData);
-  setDailyVerse(verseData); // <-- Salvamos o versículo no estado
   
   axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
   await SecureStore.setItemAsync('userToken', newToken);
@@ -150,7 +137,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { token: newToken, user: userData, dailyVerse: verseData } = response.data;
     setToken(newToken);
     setUser(userData);
-    setDailyVerse(verseData);
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     await SecureStore.setItemAsync('userToken', newToken);
   }
@@ -158,13 +144,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   async function logout() {
     setToken(null);
     setUser(null);
-    setDailyVerse(null);
     delete axios.defaults.headers.common['Authorization'];
     await SecureStore.deleteItemAsync('userToken');
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, loading, login, register, logout, signInWithGoogle, dailyVerse }}>
+    <AuthContext.Provider value={{ token, user, loading, login, register, logout, signInWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

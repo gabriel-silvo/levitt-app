@@ -4,65 +4,94 @@ import ListItemCard from '@/src/components/ListItemCard';
 import VerseOfTheDayCard from '@/src/components/VerseOfTheDay';
 import { theme } from '@/src/styles/theme';
 import axios from 'axios'; // Garanta que axios está importado
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_URL } from '../../src/config/api'; // Garanta que a API_URL está importada
 import { useAuth } from '../../src/contexts/AuthContext';
 
-// Definimos a "forma" de um objeto de ministério
 interface Ministry {
   id: string;
   name: string;
-  memberCount: number;
+  imageUrl?: string | null;
   songCount: number;
   scaleCount: number;
+  members: { uri: string }[];
 }
 
 export default function DashboardScreen() {
   // Pegamos TUDO do contexto. A tela não busca mais nada.
-  const { logout, dailyVerse, loading } = useAuth();
-  const [selectedTag, setSelectedTag] = React.useState('Ministérios');
+  const { logout } = useAuth();
+  // --- LÓGICA DO VERSÍCULO VOLTA PARA CÁ ---
+  const [verseData, setVerseData] = useState({ verseText: '', verseReference: '', version: '' });
+  const [verseLoading, setVerseLoading] = useState(true);
+  // Criamos um estado para guardar as estatísticas
+  const [selectedTag, setSelectedTag] = React.useState('Ministério');
   const [stats, setStats] = useState({
     ministries: 0,
     scales: 0,
     rehearsals: 0,
     songs: 0,
-  }); // Criamos um estado para guardar as estatísticas
+  });
   // Criamos um estado para guardar a lista de ministérios
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
 
-  // Atualizamos o useEffect para buscar as estatísticas E a lista inicial
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoadingList(true);
+    const fetchVerse = async () => {
       try {
-        // Buscamos os stats (como antes)
-        const statsResponse = await axios.get(`${API_URL}/dashboard-stats`);
-        setStats(statsResponse.data);
-
-        // Buscamos a lista de ministérios (a tag padrão)
-        const ministriesResponse = await axios.get(`${API_URL}/ministries`);
-        setMinistries(ministriesResponse.data);
-
+        const response = await axios.get(`${API_URL}/verse-of-the-day`);
+        setVerseData(response.data);
       } catch (error) {
-        console.error("Erro ao buscar dados da dashboard:", error);
+        console.error("Falha ao buscar versículo:", error);
+        setVerseData({
+          verseText: "O Senhor é o meu pastor; nada me faltará.",
+          verseReference: "Salmos 23:1",
+          version: "NVI"
+        });
       } finally {
-        setIsLoadingList(false);
+        setVerseLoading(false);
       }
     };
-
-    fetchData();
+    fetchVerse();
   }, []);
+
+  // Atualizamos o useEffect para buscar as estatísticas E a lista inicial
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        setIsLoadingList(true);
+        try {
+          // A lógica de busca de dados é a mesma de antes
+          const statsResponse = await axios.get(`${API_URL}/dashboard-stats`);
+          setStats(statsResponse.data);
+
+          const ministriesResponse = await axios.get(`${API_URL}/ministries`);
+          setMinistries(ministriesResponse.data);
+
+        } catch (error) {
+          console.error("Erro ao buscar dados da dashboard:", error);
+        } finally {
+          setIsLoadingList(false);
+        }
+      };
+
+      fetchData();
+
+      return () => {
+        // Função de limpeza opcional, se necessário
+      };
+    }, []) // O array de dependências vazio garante que a lógica não se repita desnecessariamente
+  );
 
   // Tornamos os dados das tags dinâmicos
   const filterTags = [
-    { name: 'Ministérios', count: stats.ministries },
-    { name: 'Escalas', count: stats.scales },
-    { name: 'Ensaios', count: stats.rehearsals },
-    { name: 'Músicas', count: stats.songs },
+    { name: 'Ministério', count: stats.ministries },
+    { name: 'Escala', count: stats.scales },
+    { name: 'Ensaio', count: stats.rehearsals },
+    { name: 'Música', count: stats.songs },
   ];
 
   const handleLogout = async () => {
@@ -77,10 +106,10 @@ export default function DashboardScreen() {
         <Text variant="titleLarge" style={styles.dashboardTitle}>Dashboard</Text>
         {/* O Card agora recebe os dados diretamente do contexto */}
         <VerseOfTheDayCard 
-          verse={dailyVerse?.verseText || ''}
-          reference={dailyVerse?.verseReference || ''}
-          version={dailyVerse?.version || ''}
-          loading={loading} // Usamos o estado de loading principal do app
+          verse={verseData.verseText}
+          reference={verseData.verseReference}
+          version={verseData.version}
+          loading={verseLoading} // Usa o estado de loading local
         />
 
         {/* --- INÍCIO DAS TAGS DE FILTRO --- */}
@@ -100,7 +129,7 @@ export default function DashboardScreen() {
                 ]}
                 onPress={() => setSelectedTag(tag.name)}
               >
-                {`${tag.count > 0 ? tag.count.toString().padStart(2, '0') + ' ' : ''}${tag.name}`}
+                {`${tag.count > 0 ? tag.count.toString().padStart(2, '0') + ' ' : ''}${tag.name}${tag.count != 1 ? 's' : ''}`}
               </Chip>
             ))}
             </ScrollView>
@@ -110,16 +139,17 @@ export default function DashboardScreen() {
         {/* --- INÍCIO DA LISTA DINÂMICA --- */}
         <View style={styles.listContainer}>
           {/* Se a tag 'Ministérios' estiver selecionada, renderiza a lista */}
-          {selectedTag === 'Ministérios' && (
+          {selectedTag === 'Ministério' && (
             <>
               {ministries.map((ministry) => (
                 <ListItemCard
                   key={ministry.id}
-                  date={{ day: ministry.memberCount.toString(), month: 'Membros' }}
-                  time={`${ministry.songCount} Músicas`}
+                  // --- A MUDANÇA ESTÁ AQUI ---
+                  // Passamos a URL da imagem e a lista de membros
+                  imageUrl={ministry.imageUrl || `https://ui-avatars.com/api/?name=${ministry.name}&background=6A35F4&color=fff`}
                   title={ministry.name}
-                  description={`${ministry.scaleCount} escalas futuras`}
-                  // members e stats podem ser omitidos ou adaptados
+                  description={`${ministry.scaleCount} escalas • ${ministry.songCount} músicas`}
+                  members={ministry.members}
                 />
               ))}
             </>
@@ -198,5 +228,7 @@ const styles = StyleSheet.create({
   logoutButton: {
     marginTop: 32,
     width: '100%',
+    paddingVertical: 4,
+    borderRadius: 24,
   },
 });

@@ -1,12 +1,14 @@
 // src/components/DashboardHeader.tsx
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Avatar, IconButton, Text } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
-import { theme } from '../styles/theme';
+import { theme } from '../styles/theme'; // Adicionei a importação do tema que faltava
 
 export default function DashboardHeader() {
   const { user } = useAuth();
+  const router = useRouter();
 
   return (
     <View style={styles.container}>
@@ -20,13 +22,21 @@ export default function DashboardHeader() {
           <Text style={styles.userName}>{user?.fullName?.split(' ')[0]}</Text>
         </View>
       </TouchableOpacity>
-      <IconButton
-        containerColor={theme.colors.surface}
-        icon="bell-outline"
-        iconColor={theme.colors.white}
-        size={24}
-        onPress={() => { /* Navegar para notificações no futuro */ }}
-      />
+      <View style={styles.actionsContainer}>
+        <IconButton
+          icon="plus-circle-outline"
+          iconColor={theme.colors.white}
+          size={28}
+          onPress={() => router.push('/create-ministry')}
+        />
+        <IconButton
+          containerColor={theme.colors.surface}
+          icon="bell-outline"
+          iconColor={theme.colors.white}
+          size={24}
+          onPress={() => { /* Navegar para notificações no futuro */ }}
+        />
+      </View>
     </View>
   );
 }
@@ -53,5 +63,8 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  actionsContainer: {
+    flexDirection: 'row',
   },
 });

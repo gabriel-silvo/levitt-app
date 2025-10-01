@@ -34,6 +34,9 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     marginBottom: 24,
+    //backgroundColor: theme.colors.background, // Fundo transparente
+    borderWidth: 1,
+    borderColor: theme.colors.outline, // Borda sutil
   },
   verseText: {
     color: theme.colors.white,

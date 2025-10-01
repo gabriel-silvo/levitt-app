@@ -1,51 +1,66 @@
 // src/components/ListItemCard.tsx
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Avatar, Card, Text } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { theme } from '../styles/theme';
 
 type ListItemCardProps = {
-  date: { day: string; month: string };
-  time: string;
   title: string;
   description?: string;
+  // Propriedades antigas de data/hora se tornam opcionais
+  date?: { day: string; month: string };
+  time?: string;
+  // Nova propriedade para a imagem
+  imageUrl?: string;
   members?: { uri: string }[];
   stats?: { confirmed: number; declined: number; pending: number };
 };
 
-export default function ListItemCard({ date, time, title, description, members, stats }: ListItemCardProps) {
+export default function ListItemCard({ date, time, title, description, imageUrl, members, stats }: ListItemCardProps) {
   return (
     <Card style={styles.card}>
       <View style={styles.content}>
-        <View style={styles.dateContainer}>
-          <Text style={styles.dateDay}>{date.day}</Text>
-          <Text style={styles.dateMonth}>{date.month}</Text>
-          <Text style={styles.dateTime}>{time}</Text>
-        </View>
+        {/* --- LÓGICA DE EXIBIÇÃO: IMAGEM OU DATA --- */}
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.ministryImage} />
+        ) : date && time && (
+          <View style={styles.dateContainer}>
+            <Text style={styles.dateDay}>{date.day}</Text>
+            <Text style={styles.dateMonth}>{date.month}</Text>
+            <Text style={styles.dateTime}>{time}</Text>
+          </View>
+        )}
+        {/* --- FIM DA LÓGICA --- */}
+        
         <View style={styles.detailsContainer}>
           <Text style={styles.title}>{title}</Text>
           {description && <Text style={styles.description}>{description}</Text>}
           <View style={styles.bottomRow}>
+            {/* --- LÓGICA DOS AVATARES SOBREPOSTOS --- */}
             {members && (
               <View style={styles.avatarContainer}>
-                {members.slice(0, 4).map((member, index) => (
+                {members.slice(0, 4).map((member, index) => ( // Limite de 4 avatares
                   <Avatar.Image
                     key={index}
                     size={24}
                     source={{ uri: member.uri }}
-                    style={[styles.avatar, { marginLeft: index > 0 ? -8 : 0 }]}
+                    style={[
+                      styles.avatar,
+                      { marginLeft: index > 0 ? -8 : 0, zIndex: members.length - index } // Margem negativa e zIndex (era -8)
+                    ]}
                   />
                 ))}
               </View>
             )}
+            {/* --- FIM DA LÓGICA --- */}
             {stats && (
               <View style={styles.statsContainer}>
-                <Icon name="thumb-up" size={14} color="#34C759" />
+                <Icon name="thumb-up" size={14} color={theme.colors.success} />
                 <Text style={styles.statText}>{stats.confirmed}</Text>
-                <Icon name="thumb-down" size={14} color="#FF3B30" />
+                <Icon name="thumb-down" size={14} color={theme.colors.error} />
                 <Text style={styles.statText}>{stats.declined}</Text>
-                <Icon name="clock-outline" size={14} color="#FF9500" />
+                <Icon name="clock-outline" size={14} color={theme.colors.warning} />
                 <Text style={styles.statText}>{stats.pending}</Text>
               </View>
             )}
@@ -61,6 +76,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     marginBottom: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.outline, // Borda sutil
   },
   content: {
     flexDirection: 'row',
@@ -86,12 +103,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  ministryImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 16,
+  },
   avatarContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   avatar: {
-    borderWidth: 1.5,
-    borderColor: '#1C1C1E',
+    borderWidth: 2, // era (2.0)
+    borderColor: theme.colors.surface
   },
   statsContainer: {
     flexDirection: 'row',
